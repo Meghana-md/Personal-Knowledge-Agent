@@ -17,7 +17,7 @@ st.caption("Upload a PDF and ask questions about it.")
 api_key = st.sidebar.text_input(
     "Groq API Key",
     type="password",
-    value="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",
+    value="os.getenv("GROQ_API_KEY")",
 
     help="Free key from console.groq.com",
 )
