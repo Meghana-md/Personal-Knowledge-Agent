@@ -13,12 +13,11 @@ st.set_page_config(page_title="Personal Knowledge Agent", page_icon="🧠")
 st.title("🧠 Personal Knowledge Agent")
 st.caption("Upload a PDF and ask questions about it.")
 
-# --- API key ---
+# --- API key in Sidebar ---
 api_key = st.sidebar.text_input(
     "Groq API Key",
     type="password",
-    value="os.getenv("GROQ_API_KEY")",
-
+    value=os.getenv("GROQ_API_KEY", ""),
     help="Free key from console.groq.com",
 )
 st.sidebar.markdown("Get a free key at [console.groq.com](https://console.groq.com)")
@@ -41,23 +40,44 @@ if uploaded_file and st.button("Process Document"):
 
 st.divider()
 
-# --- Ask questions ---
-query = st.text_input("Ask a question about your document(s)")
+# --- Chat interface ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display previous conversation
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+# Chat input bar at the bottom
+query = st.chat_input("Ask a question about your document(s)")
 
 if query:
+    # 1. Check if API key is provided
     if not api_key:
         st.error("Enter your Groq API key in the sidebar first.")
     else:
-        with st.spinner("Searching and generating answer..."):
-            context = retrieve_context(query)
+        # 2. Display user query
+        st.session_state.messages.append({"role": "user", "content": query})
+        with st.chat_message("user"):
+            st.write(query)
 
-        if not context:
-            st.warning("No documents indexed yet. Upload and process a PDF first.")
-        else:
-            answer = ask_groq(query, context, api_key)
-            st.markdown("### Answer")
+        # 3. Generate answer and display
+        with st.chat_message("assistant"):
+            with st.spinner("Searching and generating answer..."):
+                context = retrieve_context(query)
+
+                if not context:
+                    answer = "No documents indexed yet. Upload and process a PDF first."
+                else:
+                    answer = ask_groq(query, context, api_key)
+
             st.write(answer)
 
-            with st.expander("Source chunks used"):
-                for i, c in enumerate(context):
-                    st.markdown(f"**Chunk {i + 1}:** {c[:300]}...")
+            if context:
+                with st.expander("Source chunks used"):
+                    for i, c in enumerate(context):
+                        st.markdown(f"**Chunk {i + 1}:** {c[:300]}...")
+
+        # 4. Save assistant answer to chat history
+        st.session_state.messages.append({"role": "assistant", "content": answer})
